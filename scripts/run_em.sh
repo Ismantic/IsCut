@@ -13,7 +13,7 @@ ISCUT="$(dirname "$0")/../build/iscut"
 mkdir -p "$OUT"
 
 # Clean up background processes on exit
-trap 'kill $(jobs -p) 2>/dev/null; wait 2>/dev/null' EXIT
+trap 'kill $(jobs -p) 2>/dev/null || true; wait 2>/dev/null' EXIT
 
 # ---------------------------------------------------------------------------
 # Split corpus into NPROC chunks (once, reused across all rounds)
