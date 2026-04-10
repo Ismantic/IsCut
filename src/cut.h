@@ -63,7 +63,7 @@ public:
                                  const std::vector<std::set<int>>& G);
 
     std::vector<std::string> CutSegment(const std::string& sentence);
-    std::vector<std::string> Cut(const std::string& sentence);
+    std::vector<std::string> Cut(const std::string& sentence, bool cn = false);
 
     void CutWithLoss(const std::string& sentence,
                      std::unordered_map<std::string, double>& loss,

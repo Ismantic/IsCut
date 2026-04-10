@@ -82,16 +82,30 @@ std::vector<std::string> NaiveCutter::CutSegment(const std::string& sentence) {
     return rs;
 }
 
-std::vector<std::string> NaiveCutter::Cut(const std::string& sentence) {
+std::vector<std::string> NaiveCutter::Cut(const std::string& sentence, bool cn) {
     auto segments = ustr::SplitByPunct(sentence);
     std::vector<std::string> rs;
 
     for (auto& [seg, is_punct] : segments) {
         if (is_punct) {
             rs.push_back(seg);
-        } else {
+            continue;
+        }
+
+        if (!cn) {
             auto words = CutSegment(seg);
             rs.insert(rs.end(), words.begin(), words.end());
+            continue;
+        }
+
+        auto runs = ustr::SplitByHan(seg);
+        for (auto& [run, is_han] : runs) {
+            if (is_han) {
+                auto words = CutSegment(run);
+                rs.insert(rs.end(), words.begin(), words.end());
+            } else {
+                rs.push_back(run);
+            }
         }
     }
 

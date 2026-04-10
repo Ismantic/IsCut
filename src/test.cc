@@ -64,10 +64,23 @@ void test_no_match() {
     check(rs.size() == 3, "no match");
 }
 
+void test_han_only_cut() {
+    cut::NaiveCutter cutter;
+    cutter.Build(
+        {"他", "是", "英国", "英国人", "人"},
+        {50, 40, 80, 100, 30});
+
+    auto rs = cutter.Cut("他是英国人Tom", true);
+    std::string result = join(rs, "/");
+    std::cout << "han_only: " << result << std::endl;
+    check(result == "他/是/英国人/Tom", "han-only cut");
+}
+
 int main() {
     test_basic_cut();
     test_chinese_cut();
     test_no_match();
+    test_han_only_cut();
     std::cout << "\nPassed: " << passed << ", Failed: " << failed << std::endl;
     return failed > 0 ? 1 : 0;
 }

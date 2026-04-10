@@ -65,7 +65,7 @@ cut::NaiveCutter BuildCutter(const std::string& dict_file) {
     return cutter;
 }
 
-void repl(const std::string& dict_file) {
+void repl(const std::string& dict_file, bool cn) {
     auto cutter = BuildCutter(dict_file);
 
     std::cout << "> ";
@@ -73,13 +73,13 @@ void repl(const std::string& dict_file) {
     while (std::getline(std::cin, line)) {
         if (line.empty() || line == "q" || line == "quit") break;
 
-        auto rs = cutter.Cut(line);
+        auto rs = cutter.Cut(line, cn);
         std::cout << join(rs, "/") << std::endl;
         std::cout << "> ";
     }
 }
 
-void pipe_mode(const std::string& dict_file) {
+void pipe_mode(const std::string& dict_file, bool cn) {
     auto cutter = BuildCutter(dict_file);
 
     std::string line;
@@ -88,7 +88,7 @@ void pipe_mode(const std::string& dict_file) {
             std::cout << "\n";
             continue;
         }
-        auto rs = cutter.Cut(line);
+        auto rs = cutter.Cut(line, cn);
         std::cout << join(rs, " ") << "\n";
     }
 }
@@ -151,7 +151,8 @@ void segment_mode(const std::string& dict_file,
 
 void cut_mode(const std::string& dict_file,
               const std::string& input_file,
-              const std::string& output_file) {
+              const std::string& output_file,
+              bool cn) {
     auto cutter = BuildCutter(dict_file);
 
     std::ifstream in(input_file);
@@ -171,7 +172,7 @@ void cut_mode(const std::string& dict_file,
             out << "\n";
             continue;
         }
-        auto rs = cutter.Cut(line);
+        auto rs = cutter.Cut(line, cn);
         out << join(rs, " ") << "\n";
     }
     std::cerr << "done" << std::endl;
@@ -307,12 +308,15 @@ int main(int argc, char* argv[]) {
 
     std::string mode;
     std::string dict_file;
+    bool cn = false;
     std::vector<std::string> args;
 
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         if (a == "--dict" && i + 1 < argc) {
             dict_file = argv[++i];
+        } else if (a == "--cn") {
+            cn = true;
         } else if (a == "--segment" || a == "--cut" || a == "--count" || a == "--pipe" || a == "--prune") {
             mode = a;
         } else {
@@ -331,7 +335,7 @@ int main(int argc, char* argv[]) {
             std::cerr << "usage: iscut --dict dict.file --cut input.file output.file" << std::endl;
             return 1;
         }
-        cut_mode(dict_file, args[0], args[1]);
+        cut_mode(dict_file, args[0], args[1], cn);
     } else if (mode == "--count") {
         if (args.size() != 2) {
             std::cerr << "usage: iscut [--dict dict.file] --count input.file output.file" << std::endl;
@@ -350,11 +354,11 @@ int main(int argc, char* argv[]) {
             std::cerr << "usage: iscut --dict dict.file --pipe" << std::endl;
             return 1;
         }
-        pipe_mode(df);
+        pipe_mode(df, cn);
     } else if (!dict_file.empty() && args.empty()) {
-        repl(dict_file);
+        repl(dict_file, cn);
     } else if (!args.empty()) {
-        repl(args[0]);
+        repl(args[0], cn);
     } else {
         std::cerr << "usage: iscut --dict dict.file [--pipe|--segment|--cut|--count|--prune] ..." << std::endl;
         return 1;
