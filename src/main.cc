@@ -10,6 +10,7 @@
 
 #include "count.h"
 #include "cut.h"
+#include "piece.h"
 #include "segment.h"
 #include "ustr.h"
 
@@ -65,7 +66,7 @@ cut::NaiveCutter BuildCutter(const std::string& dict_file) {
     return cutter;
 }
 
-void repl(const std::string& dict_file, bool cn) {
+void repl(const std::string& dict_file) {
     auto cutter = BuildCutter(dict_file);
 
     std::cout << "> ";
@@ -73,13 +74,13 @@ void repl(const std::string& dict_file, bool cn) {
     while (std::getline(std::cin, line)) {
         if (line.empty() || line == "q" || line == "quit") break;
 
-        auto rs = cutter.Cut(line, cn);
+        auto rs = cutter.Cut(line);
         std::cout << join(rs, "/") << std::endl;
         std::cout << "> ";
     }
 }
 
-void pipe_mode(const std::string& dict_file, bool cn) {
+void pipe_mode(const std::string& dict_file) {
     auto cutter = BuildCutter(dict_file);
 
     std::string line;
@@ -88,7 +89,7 @@ void pipe_mode(const std::string& dict_file, bool cn) {
             std::cout << "\n";
             continue;
         }
-        auto rs = cutter.Cut(line, cn);
+        auto rs = cutter.Cut(line);
         std::cout << join(rs, " ") << "\n";
     }
 }
@@ -151,8 +152,7 @@ void segment_mode(const std::string& dict_file,
 
 void cut_mode(const std::string& dict_file,
               const std::string& input_file,
-              const std::string& output_file,
-              bool cn) {
+              const std::string& output_file) {
     auto cutter = BuildCutter(dict_file);
 
     std::ifstream in(input_file);
@@ -172,7 +172,7 @@ void cut_mode(const std::string& dict_file,
             out << "\n";
             continue;
         }
-        auto rs = cutter.Cut(line, cn);
+        auto rs = cutter.Cut(line);
         out << join(rs, " ") << "\n";
     }
     std::cerr << "done" << std::endl;
@@ -230,6 +230,24 @@ void count_mode(const std::string& dict_file,
         out << words[i] << "\t" << freqs[i] << "\n";
     }
     std::cerr << "counted " << words.size() << " words" << std::endl;
+}
+
+void piece_mode(const std::string& model_file) {
+    piece::PieceTokenizer tok;
+    if (!tok.Load(model_file)) {
+        std::cerr << "cannot load piece model: " << model_file << std::endl;
+        return;
+    }
+    std::cerr << "loaded " << tok.VocabSize() << " pieces" << std::endl;
+
+    std::cout << "> ";
+    std::string line;
+    while (std::getline(std::cin, line)) {
+        if (line.empty() || line == "q" || line == "quit") break;
+        auto tokens = tok.Tokenize(line);
+        std::cout << join(tokens, "/") << std::endl;
+        std::cout << "> ";
+    }
 }
 
 void prune_mode(const std::string& dict_file,
@@ -299,32 +317,68 @@ void prune_mode(const std::string& dict_file,
 }
 
 int main(int argc, char* argv[]) {
-    // iscut --dict dict.file --segment input.file output.file
-    // iscut --count output.file count.file
-    // iscut --dict dict.file (repl)
-    // iscut dict.file --pipe
-    // iscut dict.file  (repl)
-    // iscut  (tests)
-
     std::string mode;
     std::string dict_file;
-    bool cn = false;
+    std::string piece_file;
+    bool en = false;
     std::vector<std::string> args;
 
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         if (a == "--dict" && i + 1 < argc) {
             dict_file = argv[++i];
-        } else if (a == "--cn") {
-            cn = true;
-        } else if (a == "--segment" || a == "--cut" || a == "--count" || a == "--pipe" || a == "--prune") {
+        } else if (a == "--piece-model" && i + 1 < argc) {
+            piece_file = argv[++i];
+        } else if (a == "--en") {
+            en = true;
+        } else if (a == "--segment" || a == "--cut" || a == "--count" ||
+                   a == "--pipe" || a == "--prune" || a == "--piece" ||
+                   a == "--semantic") {
             mode = a;
         } else {
             args.push_back(a);
         }
     }
 
-    if (mode == "--segment") {
+    if (mode == "--semantic") {
+        if (dict_file.empty()) {
+            std::cerr << "usage: iscut --dict dict.file --semantic [--piece-model piece.txt] [--en]" << std::endl;
+            return 1;
+        }
+        auto cutter = BuildCutter(dict_file);
+        cut::SemanticCutter sc;
+        sc.Build(std::vector<std::string>{}, std::vector<int>{});
+
+        // Reuse the NaiveCutter we already built — rebuild SemanticCutter with same dict
+        {
+            std::vector<std::string> words;
+            std::vector<int> freqs;
+            LoadDict(dict_file, words, freqs);
+            sc.Build(words, freqs);
+        }
+
+        if (!piece_file.empty()) {
+            if (!sc.LoadPiece(piece_file)) {
+                std::cerr << "cannot load piece model: " << piece_file << std::endl;
+                return 1;
+            }
+            std::cerr << "piece model loaded" << std::endl;
+        } else if (en) {
+            std::cerr << "warning: --en requires --piece-model" << std::endl;
+        }
+
+        std::cout << "> ";
+        std::string line;
+        while (std::getline(std::cin, line)) {
+            if (line.empty() || line == "q" || line == "quit") break;
+            auto rs = sc.Cut(line, en);
+            std::cout << join(rs, "/") << std::endl;
+            std::cout << "> ";
+        }
+    } else if (mode == "--piece") {
+        std::string model = args.empty() ? "piece.txt" : args[0];
+        piece_mode(model);
+    } else if (mode == "--segment") {
         if (dict_file.empty() || args.size() != 2) {
             std::cerr << "usage: iscut --dict dict.file --segment input.file output.file" << std::endl;
             return 1;
@@ -335,7 +389,7 @@ int main(int argc, char* argv[]) {
             std::cerr << "usage: iscut --dict dict.file --cut input.file output.file" << std::endl;
             return 1;
         }
-        cut_mode(dict_file, args[0], args[1], cn);
+        cut_mode(dict_file, args[0], args[1]);
     } else if (mode == "--count") {
         if (args.size() != 2) {
             std::cerr << "usage: iscut [--dict dict.file] --count input.file output.file" << std::endl;
@@ -354,11 +408,11 @@ int main(int argc, char* argv[]) {
             std::cerr << "usage: iscut --dict dict.file --pipe" << std::endl;
             return 1;
         }
-        pipe_mode(df, cn);
+        pipe_mode(df);
     } else if (!dict_file.empty() && args.empty()) {
-        repl(dict_file, cn);
+        repl(dict_file);
     } else if (!args.empty()) {
-        repl(args[0], cn);
+        repl(args[0]);
     } else {
         std::cerr << "usage: iscut --dict dict.file [--pipe|--segment|--cut|--count|--prune] ..." << std::endl;
         return 1;

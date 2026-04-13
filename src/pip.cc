@@ -32,8 +32,8 @@ public:
         cutter_.Build(words, freqs);
     }
 
-    std::vector<std::string> cut(const std::string& sentence, bool cn = false) {
-        return cutter_.Cut(sentence, cn);
+    std::vector<std::string> cut(const std::string& sentence) {
+        return cutter_.Cut(sentence);
     }
 
 private:
@@ -45,5 +45,5 @@ PYBIND11_MODULE(_iscut, m) {
 
     py::class_<PyCutter>(m, "Cutter")
         .def(py::init<const std::string&>(), py::arg("dict_path"))
-        .def("cut", &PyCutter::cut, py::arg("sentence"), py::arg("cn") = false);
+        .def("cut", &PyCutter::cut, py::arg("sentence"));
 }

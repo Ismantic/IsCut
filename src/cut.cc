@@ -82,7 +82,7 @@ std::vector<std::string> NaiveCutter::CutSegment(const std::string& sentence) {
     return rs;
 }
 
-std::vector<std::string> NaiveCutter::Cut(const std::string& sentence, bool cn) {
+std::vector<std::string> NaiveCutter::Cut(const std::string& sentence) {
     auto segments = ustr::SplitByPunct(sentence);
     std::vector<std::string> rs;
 
@@ -91,22 +91,8 @@ std::vector<std::string> NaiveCutter::Cut(const std::string& sentence, bool cn) 
             rs.push_back(seg);
             continue;
         }
-
-        if (!cn) {
-            auto words = CutSegment(seg);
-            rs.insert(rs.end(), words.begin(), words.end());
-            continue;
-        }
-
-        auto runs = ustr::SplitByHan(seg);
-        for (auto& [run, is_han] : runs) {
-            if (is_han) {
-                auto words = CutSegment(run);
-                rs.insert(rs.end(), words.begin(), words.end());
-            } else {
-                rs.push_back(run);
-            }
-        }
+        auto words = CutSegment(seg);
+        rs.insert(rs.end(), words.begin(), words.end());
     }
 
     return rs;
@@ -164,6 +150,49 @@ void NaiveCutter::CutWithLoss(const std::string& sentence,
             G[w.start].insert(w.end);
         }
     }
+}
+
+void SemanticCutter::Build(const std::vector<std::string>& words,
+                           const std::vector<int>& freqs) {
+    cutter_.Build(words, freqs);
+}
+
+bool SemanticCutter::LoadPiece(const std::string& path) {
+    return piece_.Load(path);
+}
+
+std::vector<std::string> SemanticCutter::Cut(const std::string& sentence,
+                                              bool en) {
+    // First split by Han/non-Han so non-Han runs keep their spaces intact.
+    auto runs = ustr::SplitByHan(sentence);
+    std::vector<std::string> rs;
+
+    for (auto& [run, is_han] : runs) {
+        if (is_han) {
+            // Han: split by punctuation, then Unigram each segment.
+            auto segments = ustr::SplitByPunct(run);
+            for (auto& [seg, is_punct] : segments) {
+                if (is_punct) {
+                    rs.push_back(seg);
+                } else {
+                    auto words = cutter_.CutSegment(seg);
+                    rs.insert(rs.end(), words.begin(), words.end());
+                }
+            }
+        } else if (en && piece_.Ready()) {
+            // Non-Han with en: PieceTokenizer handles spaces via ▁.
+            auto tokens = piece_.Tokenize(run);
+            rs.insert(rs.end(), tokens.begin(), tokens.end());
+        } else {
+            // Non-Han without en: split by punctuation, keep as-is.
+            auto segments = ustr::SplitByPunct(run);
+            for (auto& [seg, is_punct] : segments) {
+                rs.push_back(seg);
+            }
+        }
+    }
+
+    return rs;
 }
 
 } // namespace cut

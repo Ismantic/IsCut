@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <math.h>
 
+#include "piece.h"
 #include "trie.h"
 
 namespace cut {
@@ -63,11 +64,28 @@ public:
                                  const std::vector<std::set<int>>& G);
 
     std::vector<std::string> CutSegment(const std::string& sentence);
-    std::vector<std::string> Cut(const std::string& sentence, bool cn = false);
+    std::vector<std::string> Cut(const std::string& sentence);
 
     void CutWithLoss(const std::string& sentence,
                      std::unordered_map<std::string, double>& loss,
                      std::unordered_map<std::string, int>& count);
+};
+
+class SemanticCutter {
+public:
+    void Build(const std::vector<std::string>& words,
+               const std::vector<int>& freqs);
+
+    bool LoadPiece(const std::string& path);
+
+    // en: use PieceTokenizer for non-Han runs (requires LoadPiece)
+    // Always splits Han/non-Han; only Han runs go through Unigram.
+    std::vector<std::string> Cut(const std::string& sentence,
+                                 bool en = false);
+
+private:
+    NaiveCutter cutter_;
+    piece::PieceTokenizer piece_;
 };
 
 } // namespace cut
