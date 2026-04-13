@@ -1,4 +1,4 @@
-# Iscut (Is Semantic Cutter) 是语切词
+# IsCut (Is Semantic Cutter) 是语切词
 
 想办法构建一个词表，找一大批中文语料，就能构建一个还不错的分词器。
 
