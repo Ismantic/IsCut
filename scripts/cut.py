@@ -45,20 +45,11 @@ def main() -> None:
               initargs=(args.dict, args.piece, args.en)) as pool:
 
         lines_done = 0
-        batch = []
-        for line in fin:
-            batch.append(line)
-            if len(batch) >= BATCH_SIZE:
-                for result in pool.map(_cut_line, batch):
-                    fout.write(result + "\n")
-                lines_done += len(batch)
-                if lines_done % 500000 < BATCH_SIZE:
-                    print(f"  {lines_done} lines", file=sys.stderr)
-                batch = []
-        if batch:
-            for result in pool.map(_cut_line, batch):
-                fout.write(result + "\n")
-            lines_done += len(batch)
+        for result in pool.imap(_cut_line, fin, chunksize=BATCH_SIZE):
+            fout.write(result + "\n")
+            lines_done += 1
+            if lines_done % 500000 == 0:
+                print(f"  {lines_done} lines", file=sys.stderr)
 
     print(f"done: {lines_done} lines -> {args.output}", file=sys.stderr)
 

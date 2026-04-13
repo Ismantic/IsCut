@@ -1,6 +1,6 @@
 VOCAB_SIZE = 240000
 SUB_ITERS = 2
-MIN_COUNT = 24
+MIN_COUNT = 15
 #NPROC = $(shell nproc)
 NPROC = 8
 CORPUS = sentences.txt
