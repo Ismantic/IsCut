@@ -20,26 +20,6 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
-### MixCutter（中英混合切分）
-
-```bash
-# 交互模式：cn=中文分词，en=英文BPE分词
-./build/iscut --dict dict.txt --piece-model piece.txt --semantic --cn --en
-```
-
-```
-> 南京市长江大桥and Natural Language Processing技术
-南京市/长江/大桥/and/▁Natural/▁Language/▁Pro/cess/ing/技术
-
-> I love Python3.14
-I/▁love/▁Py/th/on/3/./14
-```
-
-切分规则：
-- 第一层：按 Han/non-Han 分割（CJK 标点归入 Han）
-- `--cn`：Han 段用 Cutter（DAG+DP）分词，关闭则拆成单字
-- `--en`：non-Han 段经 PieceTokenizer 处理（Normalize → GPT-4 风格预分割 → BPE），关闭则拆成单字
-
 ### Cutter（纯中文分词）
 
 ```bash
@@ -139,6 +119,28 @@ make VOCAB_SIZE=100000 SUB_ITERS=3
    - EM 子迭代：DAG+DP 分词 → 统计词频 → 更新词表（默认 2 轮）
    - 剪枝：计算每个词的全局 loss（删除后似然损失），保留 top 75%
 3. **最终 EM**：在剪枝后的词表上再跑一轮 EM 收敛词频
+
+## MixCutter（中英混合切分）
+
+MixCutter 在 Cutter 基础上支持中英混合文本切分：
+
+- 第一层：按 Han/non-Han 分割（CJK 标点归入 Han）
+- `--cn`：Han 段用 Cutter（DAG+DP）分词，关闭则拆成单字
+- `--en`：non-Han 段经 PieceTokenizer 处理（Normalize → GPT-4 风格预分割 → BPE），关闭则拆成单字
+
+其中 `piece.txt` BPE 模型来自 [PieceTokenizer](https://github.com/Ismantic/PieceTokenizer)。
+
+```bash
+./build/iscut --dict dict.txt --piece-model piece.txt --semantic --cn --en
+```
+
+```
+> 南京市长江大桥and Natural Language Processing技术
+南京市/长江/大桥/and/▁Natural/▁Language/▁Pro/cess/ing/技术
+
+> I love Python3.14
+I/▁love/▁Py/th/on/3/./14
+```
 
 ## 项目结构
 
