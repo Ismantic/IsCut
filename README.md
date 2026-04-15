@@ -5,7 +5,7 @@
 ## 特性
 
 - **DAG + 动态规划分词** — 前缀搜索构建 DAG，后向 DP 求最大概率路径
-- **SemanticCutter** — 中英混合文本分流切分：中文走 Unigram 分词，英文走 BPE 分词
+- **MixCutter** — 中英混合文本分流切分：中文走 Unigram 分词，英文走 BPE 分词
 - **EM 词频自举** — 给定词典和生语料，无需标注数据即可学出词频
 - **冷启动分词** — 正向最长匹配，用于 EM 的初始化
 - **Double-Array Trie** — XOR 索引，支持精确查找和公共前缀搜索
@@ -20,7 +20,7 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
-### SemanticCutter（中英混合切分）
+### MixCutter（中英混合切分）
 
 ```bash
 # 交互模式：cn=中文分词，en=英文BPE分词
@@ -37,10 +37,10 @@ I/▁love/▁Py/th/on/3/./14
 
 切分规则：
 - 第一层：按 Han/non-Han 分割（CJK 标点归入 Han）
-- `--cn`：Han 段用 NaiveCutter（DAG+DP）分词，关闭则拆成单字
+- `--cn`：Han 段用 Cutter（DAG+DP）分词，关闭则拆成单字
 - `--en`：non-Han 段经 PieceTokenizer 处理（Normalize → GPT-4 风格预分割 → BPE），关闭则拆成单字
 
-### NaiveCutter（纯中文分词）
+### Cutter（纯中文分词）
 
 ```bash
 # 交互模式
@@ -64,8 +64,8 @@ uv pip install .
 ```python
 import iscut
 
-# SemanticCutter：中英混合
-sc = iscut.SemanticCutter("dict.txt", "piece.txt")
+# MixCutter：中英混合
+sc = iscut.MixCutter("dict.txt", "piece.txt")
 sc.cut("Hello世界", cn=True, en=True)  # ['H', 'ello', '世界']
 
 # Cutter：纯中文
@@ -145,7 +145,7 @@ make VOCAB_SIZE=100000 SUB_ITERS=3
 ```
 src/           - C++ 分词器核心
   trie.h       - Double-Array Trie（XOR 索引，前缀搜索）
-  cut.h/cc     - NaiveCutter（DAG+DP）和 SemanticCutter（中英分流）
+  cut.h/cc     - Cutter（DAG+DP）和 MixCutter（中英分流）
   piece.h/cc   - PieceTokenizer（Normalize → SplitText → BPE）
   segment.h/cc - 正向最长匹配（EM 冷启动用）
   ustr.h/cc    - UTF-8 工具：SplitByHan、SplitByPunct

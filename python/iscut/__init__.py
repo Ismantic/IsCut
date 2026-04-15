@@ -1,3 +1,3 @@
-from iscut._iscut import Cutter, SemanticCutter
+from iscut._iscut import Cutter, MixCutter
 
-__all__ = ["Cutter", "SemanticCutter"]
+__all__ = ["Cutter", "MixCutter"]

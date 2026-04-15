@@ -5,7 +5,7 @@
 
 namespace cut {
 
-std::vector<std::set<int>> NaiveCutter::DAG(const std::string& sentence) {
+std::vector<std::set<int>> Cutter::DAG(const std::string& sentence) {
     int n = sentence.length();
     std::vector<std::set<int>> G(n);
 
@@ -31,7 +31,7 @@ std::vector<std::set<int>> NaiveCutter::DAG(const std::string& sentence) {
     return G;
 }
 
-std::vector<float_i> NaiveCutter::Compute(const std::string& sentence,
+std::vector<float_i> Cutter::Compute(const std::string& sentence,
                                           const std::vector<std::set<int>>& G) {
     int n = sentence.length();
 
@@ -59,7 +59,7 @@ std::vector<float_i> NaiveCutter::Compute(const std::string& sentence,
     return route;
 }
 
-std::vector<std::string> NaiveCutter::CutSegment(const std::string& sentence) {
+std::vector<std::string> Cutter::CutSegment(const std::string& sentence) {
     std::vector<std::set<int>> G = DAG(sentence);
     std::vector<float_i> R = Compute(sentence, G);
 
@@ -82,7 +82,7 @@ std::vector<std::string> NaiveCutter::CutSegment(const std::string& sentence) {
     return rs;
 }
 
-std::vector<std::string> NaiveCutter::Cut(const std::string& sentence) {
+std::vector<std::string> Cutter::Cut(const std::string& sentence) {
     auto segments = ustr::SplitByPunct(sentence);
     std::vector<std::string> rs;
 
@@ -98,7 +98,7 @@ std::vector<std::string> NaiveCutter::Cut(const std::string& sentence) {
     return rs;
 }
 
-void NaiveCutter::CutWithLoss(const std::string& sentence,
+void Cutter::CutWithLoss(const std::string& sentence,
                               std::unordered_map<std::string, double>& loss,
                               std::unordered_map<std::string, int>& count) {
     auto segments = ustr::SplitByPunct(sentence);
@@ -152,12 +152,12 @@ void NaiveCutter::CutWithLoss(const std::string& sentence,
     }
 }
 
-void SemanticCutter::Build(const std::vector<std::string>& words,
+void MixCutter::Build(const std::vector<std::string>& words,
                            const std::vector<int>& freqs) {
     cutter_.Build(words, freqs);
 }
 
-bool SemanticCutter::LoadPiece(const std::string& path) {
+bool MixCutter::LoadPiece(const std::string& path) {
     return piece_.Load(path);
 }
 
@@ -174,7 +174,7 @@ static std::vector<std::string> SplitChars(const std::string& s) {
     return chars;
 }
 
-std::vector<std::string> SemanticCutter::Cut(const std::string& sentence,
+std::vector<std::string> MixCutter::Cut(const std::string& sentence,
                                               bool cn, bool en) {
     // Split by Han/non-Han so each run gets appropriate treatment.
     auto runs = ustr::SplitByHan(sentence);

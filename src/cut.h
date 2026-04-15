@@ -16,7 +16,7 @@ namespace cut {
 using float_t = double;
 using float_i = std::pair<float_t, int>;
 
-class NaiveCutter {
+class Cutter {
 private:
     trie::DoubleArray<int> da_;
     uint64_t sum_;
@@ -71,20 +71,20 @@ public:
                      std::unordered_map<std::string, int>& count);
 };
 
-class SemanticCutter {
+class MixCutter {
 public:
     void Build(const std::vector<std::string>& words,
                const std::vector<int>& freqs);
 
     bool LoadPiece(const std::string& path);
 
-    // cn: use NaiveCutter (Unigram) for Han runs
+    // cn: use Cutter (Unigram) for Han runs
     // en: use PieceTokenizer for non-Han runs (requires LoadPiece)
     std::vector<std::string> Cut(const std::string& sentence,
                                  bool cn = false, bool en = false);
 
 private:
-    NaiveCutter cutter_;
+    Cutter cutter_;
     piece::PieceTokenizer piece_;
 };
 

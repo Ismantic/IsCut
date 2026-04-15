@@ -47,7 +47,7 @@ void LoadDict(const std::string& filename,
     }
 }
 
-cut::NaiveCutter BuildCutter(const std::string& dict_file) {
+cut::Cutter BuildCutter(const std::string& dict_file) {
     std::vector<std::string> words;
     std::vector<int> freqs;
 
@@ -55,7 +55,7 @@ cut::NaiveCutter BuildCutter(const std::string& dict_file) {
     LoadDict(dict_file, words, freqs);
     std::cerr << "loaded " << words.size() << " words" << std::endl;
 
-    cut::NaiveCutter cutter;
+    cut::Cutter cutter;
 
     auto start = std::chrono::high_resolution_clock::now();
     cutter.Build(words, freqs);
@@ -344,7 +344,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (mode == "--semantic") {
-        cut::SemanticCutter sc;
+        cut::MixCutter sc;
         if (!dict_file.empty()) {
             std::vector<std::string> words;
             std::vector<int> freqs;

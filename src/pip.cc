@@ -40,12 +40,12 @@ public:
     }
 
 private:
-    cut::NaiveCutter cutter_;
+    cut::Cutter cutter_;
 };
 
-class PySemanticCutter {
+class PyMixCutter {
 public:
-    PySemanticCutter(const std::string& dict_path,
+    PyMixCutter(const std::string& dict_path,
                      const std::string& piece_path) {
         std::vector<std::string> words;
         std::vector<int> freqs;
@@ -61,7 +61,7 @@ public:
     }
 
 private:
-    cut::SemanticCutter cutter_;
+    cut::MixCutter cutter_;
 };
 
 PYBIND11_MODULE(_iscut, m) {
@@ -71,9 +71,9 @@ PYBIND11_MODULE(_iscut, m) {
         .def(py::init<const std::string&>(), py::arg("dict_path"))
         .def("cut", &PyCutter::cut, py::arg("sentence"));
 
-    py::class_<PySemanticCutter>(m, "SemanticCutter")
+    py::class_<PyMixCutter>(m, "MixCutter")
         .def(py::init<const std::string&, const std::string&>(),
              py::arg("dict_path"), py::arg("piece_path") = "")
-        .def("cut", &PySemanticCutter::cut,
+        .def("cut", &PyMixCutter::cut,
              py::arg("sentence"), py::arg("cn") = false, py::arg("en") = false);
 }

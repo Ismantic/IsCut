@@ -15,7 +15,7 @@ _en = False
 
 def _init_worker(dict_path: str, piece_path: str, cn: bool, en: bool):
     global _cutter, _cn, _en
-    _cutter = iscut.SemanticCutter(dict_path, piece_path)
+    _cutter = iscut.MixCutter(dict_path, piece_path)
     _cn = cn
     _en = en
 
@@ -34,7 +34,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Parallel segmentation with iscut")
     parser.add_argument("--dict", required=True, help="dictionary file")
     parser.add_argument("--piece", default="", help="piece model file for BPE")
-    parser.add_argument("--cn", action="store_true", help="use NaiveCutter for Han runs")
+    parser.add_argument("--cn", action="store_true", help="use Cutter for Han runs")
     parser.add_argument("--en", action="store_true", help="use PieceTokenizer for non-Han runs")
     parser.add_argument("input", help="input text file")
     parser.add_argument("output", help="output segmented file")

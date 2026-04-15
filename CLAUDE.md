@@ -41,7 +41,7 @@ Training requires: `datasets`, `huggingface_hub[cli]`, `opencc` Python packages.
 ### Core C++ (`src/`)
 
 - **`trie.h`** — `trie::DoubleArray<T>`: XOR-indexed double-array trie. Requires sorted input. Supports exact lookup (`GetUnit`) and common prefix search (`PrefixSearch`). Header-only.
-- **`cut.h/cc`** — `cut::NaiveCutter`: the main segmenter. Builds DAG via trie prefix search, runs backward DP to find max log-probability path. `CutWithLoss` computes per-word deletion loss for pruning.
+- **`cut.h/cc`** — `cut::Cutter`: the main segmenter. Builds DAG via trie prefix search, runs backward DP to find max log-probability path. `CutWithLoss` computes per-word deletion loss for pruning.
 - **`segment.h/cc`** — `cut::Segmenter`: forward longest-match segmenter (no frequencies). Used for EM cold start.
 - **`ustr.h/cc`** — UTF-8 utilities: char length, punctuation detection, `SplitByPunct` for pre-segmentation.
 - **`count.h/cc`** — `cut::Counter`: word frequency accumulator.

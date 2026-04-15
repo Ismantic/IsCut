@@ -26,7 +26,7 @@ void check(bool cond, const std::string& name) {
 }
 
 void test_basic_cut() {
-    cut::NaiveCutter cutter;
+    cut::Cutter cutter;
     cutter.Build({"ab", "cd", "abcd", "ef"}, {5, 5, 100, 5});
 
     auto rs = cutter.Cut("abcdef");
@@ -36,7 +36,7 @@ void test_basic_cut() {
 }
 
 void test_chinese_cut() {
-    cut::NaiveCutter cutter;
+    cut::Cutter cutter;
     cutter.Build(
         {"\xe5\x8d\x97\xe4\xba\xac",
          "\xe5\x8d\x97\xe4\xba\xac\xe5\xb8\x82",
@@ -56,7 +56,7 @@ void test_chinese_cut() {
 }
 
 void test_no_match() {
-    cut::NaiveCutter cutter;
+    cut::Cutter cutter;
     cutter.Build({"ab", "cd"}, {10, 10});
 
     auto rs = cutter.Cut("xyz");
@@ -65,7 +65,7 @@ void test_no_match() {
 }
 
 void test_han_only_cut() {
-    cut::NaiveCutter cutter;
+    cut::Cutter cutter;
     cutter.Build(
         {"他", "是", "英国", "英国人", "人"},
         {50, 40, 80, 100, 30});
