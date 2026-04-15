@@ -20,7 +20,7 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
-### Cutter（纯中文分词）
+### 中文切词
 
 ```bash
 # 交互模式
@@ -44,11 +44,6 @@ uv pip install .
 ```python
 import iscut
 
-# MixCutter：中英混合
-sc = iscut.MixCutter("dict.txt", "piece.txt")
-sc.cut("Hello世界", cn=True, en=True)  # ['H', 'ello', '世界']
-
-# Cutter：纯中文
 cutter = iscut.Cutter("dict.txt")
 cutter.cut("南京市长江大桥")  # ['南京市', '长江', '大桥']
 ```
@@ -142,6 +137,11 @@ MixCutter 在 Cutter 基础上支持中英混合文本切分：
 I/▁love/▁Py/th/on/3/./14
 ```
 
+```python
+sc = iscut.MixCutter("dict.txt", "piece.txt")
+sc.cut("Hello世界", cn=True, en=True)  # ['H', 'ello', '世界']
+```
+
 ## 项目结构
 
 ```
@@ -153,7 +153,7 @@ src/           - C++ 分词器核心
   ustr.h/cc    - UTF-8 工具：SplitByHan、SplitByPunct
   count.h/cc   - 词频统计
   main.cc      - CLI 入口
-  pip.cc       - pybind11 Python 绑定
+  pip.cc       - Pybind11 Python 绑定
 dict/          - 维基词表获取与转换
 data/          - 语料下载与处理
 scripts/       - 训练流程（字频统计、词表过滤、EM）
