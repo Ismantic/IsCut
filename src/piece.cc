@@ -53,6 +53,26 @@ static bool IsHanCP(uint32_t cp) {
            (cp >= 0x20000 && cp <= 0x323AF);
 }
 
+static bool IsDigitCP(uint32_t cp) {
+    if (cp >= '0' && cp <= '9') return true;
+    if (cp >= 0xFF10 && cp <= 0xFF19) return true;  // fullwidth digits
+    return false;
+}
+
+static bool IsPunctuationToken(const char* p, const char* end) {
+    int len = ustr::CharLen(static_cast<uint8_t>(*p));
+    if (p + len > end) len = 1;
+    uint32_t cp = ustr::DecodeUTF8(std::string_view(p, len));
+    if (IsWordChar(cp)) return false;
+    if (cp == 0x20 || cp == 0xA0 || cp == 0x1680 || cp == 0x3000) return false;
+    if (cp >= 0x2000 && cp <= 0x200A) return false;
+    if (cp == 0x2028 || cp == 0x2029 || cp == 0x202F || cp == 0x205F) return false;
+    if (cp == 0x85) return false;
+    if (cp < 0x20 || cp == 0x7F) return false;
+    if (cp >= 0x80 && cp <= 0x9F) return false;
+    return true;
+}
+
 static uint32_t DecodeCP(const char* p, const char* end) {
     int len = ustr::CharLen(static_cast<uint8_t>(*p));
     if (p + len > end) len = 1;
@@ -60,22 +80,55 @@ static uint32_t DecodeCP(const char* p, const char* end) {
 }
 
 static std::vector<std::string_view> SplitText(std::string_view text,
-                                                std::string_view space) {
+                                                std::string_view space,
+                                                int cut = 0) {
     std::vector<std::string_view> result;
     const char* begin = text.data();
     const char* end = text.data() + text.size();
     if (begin >= end) return result;
 
+    // cut=1: spaces and punctuation each become independent tokens.
+    if (cut == 1) {
+        const char* p = begin;
+        while (p < end) {
+            const int clen = std::min<int>(
+                ustr::CharLen(static_cast<uint8_t>(*p)), end - p);
+            std::string_view ch(p, clen);
+
+            if (ch == space) {
+                result.emplace_back(p, clen);
+                p += clen;
+            } else if (IsPunctuationToken(p, end)) {
+                result.emplace_back(p, clen);
+                p += clen;
+            } else {
+                const char* run_start = p;
+                p += clen;
+                while (p < end) {
+                    const int wlen = std::min<int>(
+                        ustr::CharLen(static_cast<uint8_t>(*p)), end - p);
+                    std::string_view wch(p, wlen);
+                    if (wch == space || IsPunctuationToken(p, end)) break;
+                    p += wlen;
+                }
+                result.emplace_back(run_start, p - run_start);
+            }
+        }
+        return result;
+    }
+
     auto char_len = [&](const char* p) -> int {
         return std::min<int>(ustr::CharLen(static_cast<uint8_t>(*p)), end - p);
     };
 
-    enum Kind { kSpace, kWord, kPunct };
+    enum Kind { kSpace, kLetter, kDigit, kHan, kPunct };
     auto classify = [&](const char* p, int len) -> Kind {
         std::string_view c(p, len);
         if (c == space) return kSpace;
         uint32_t cp = DecodeCP(p, end);
-        if (IsWordChar(cp)) return kWord;
+        if (IsHanCP(cp)) return kHan;
+        if (IsDigitCP(cp)) return kDigit;
+        if (IsWordChar(cp)) return kLetter;
         return kPunct;
     };
 
@@ -87,83 +140,84 @@ static std::vector<std::string_view> SplitText(std::string_view text,
         const Kind kind = classify(begin, clen);
 
         if (kind == kSpace) {
-            if (pending_space != nullptr) {
+            if (pending_space != nullptr)
                 result.emplace_back(pending_space, pending_space_len);
-            }
             pending_space = begin;
             pending_space_len = clen;
             begin += clen;
             continue;
         }
 
-        if (kind == kWord) {
-            uint32_t first_cp = DecodeCP(begin, end);
-            bool first_han = IsHanCP(first_cp);
-
-            const char* run_start;
-            if (pending_space != nullptr) {
-                if (first_han) {
-                    result.emplace_back(pending_space, pending_space_len);
-                    run_start = begin;
-                } else {
-                    run_start = pending_space;
-                }
-                pending_space = nullptr;
-            } else {
-                run_start = begin;
-            }
-
+        if (kind == kLetter) {
+            // Space attaches as prefix to letter runs.
+            const char* run_start = pending_space ? pending_space : begin;
+            pending_space = nullptr;
             const char* run_end = begin;
-            while (run_end < end) {
-                const int wlen = char_len(run_end);
-                if (classify(run_end, wlen) != kWord) break;
-                uint32_t cp = DecodeCP(run_end, end);
-                if (IsHanCP(cp) != first_han) break;
-                run_end += wlen;
-            }
+            while (run_end < end && classify(run_end, char_len(run_end)) == kLetter)
+                run_end += char_len(run_end);
             result.emplace_back(run_start, run_end - run_start);
             begin = run_end;
             continue;
         }
 
-        // kPunct
+        if (kind == kDigit) {
+            // Space does NOT attach to digit runs.
+            if (pending_space) {
+                result.emplace_back(pending_space, pending_space_len);
+                pending_space = nullptr;
+            }
+            const char* run_start = begin;
+            const char* run_end = begin;
+            while (run_end < end && classify(run_end, char_len(run_end)) == kDigit)
+                run_end += char_len(run_end);
+            result.emplace_back(run_start, run_end - run_start);
+            begin = run_end;
+            continue;
+        }
+
+        if (kind == kHan) {
+            // Space does NOT attach to Han runs.
+            if (pending_space) {
+                result.emplace_back(pending_space, pending_space_len);
+                pending_space = nullptr;
+            }
+            const char* run_start = begin;
+            const char* run_end = begin;
+            while (run_end < end && classify(run_end, char_len(run_end)) == kHan)
+                run_end += char_len(run_end);
+            result.emplace_back(run_start, run_end - run_start);
+            begin = run_end;
+            continue;
+        }
+
+        // kind == kPunct
+        // Punct-as-prefix: one punct char absorbs into a following letter run.
+        // Only when no pending space, and only for letter runs (not digit/Han).
         if (pending_space == nullptr && begin + clen < end) {
             const int nlen = char_len(begin + clen);
-            if (classify(begin + clen, nlen) == kWord) {
-                uint32_t wcp = DecodeCP(begin + clen, end);
-                if (!IsHanCP(wcp)) {
-                    const char* run_start = begin;
-                    const char* run_end = begin + clen;
-                    while (run_end < end) {
-                        const int wlen = char_len(run_end);
-                        if (classify(run_end, wlen) != kWord) break;
-                        uint32_t cp = DecodeCP(run_end, end);
-                        if (IsHanCP(cp)) break;
-                        run_end += wlen;
-                    }
-                    result.emplace_back(run_start, run_end - run_start);
-                    begin = run_end;
-                    continue;
-                }
+            if (classify(begin + clen, nlen) == kLetter) {
+                const char* run_start = begin;
+                const char* run_end = begin + clen;
+                while (run_end < end && classify(run_end, char_len(run_end)) == kLetter)
+                    run_end += char_len(run_end);
+                result.emplace_back(run_start, run_end - run_start);
+                begin = run_end;
+                continue;
             }
         }
 
-        const char* run_start =
-            pending_space != nullptr ? pending_space : begin;
+        // Regular punct run. Space attaches as prefix to punct runs.
+        const char* run_start = pending_space ? pending_space : begin;
         pending_space = nullptr;
         const char* run_end = begin;
-        while (run_end < end) {
-            const int plen = char_len(run_end);
-            if (classify(run_end, plen) != kPunct) break;
-            run_end += plen;
-        }
+        while (run_end < end && classify(run_end, char_len(run_end)) == kPunct)
+            run_end += char_len(run_end);
         result.emplace_back(run_start, run_end - run_start);
         begin = run_end;
     }
 
-    if (pending_space != nullptr) {
+    if (pending_space != nullptr)
         result.emplace_back(pending_space, pending_space_len);
-    }
 
     return result;
 }
