@@ -161,34 +161,45 @@ bool SemanticCutter::LoadPiece(const std::string& path) {
     return piece_.Load(path);
 }
 
+// Split a string into individual UTF-8 characters.
+static std::vector<std::string> SplitChars(const std::string& s) {
+    std::vector<std::string> chars;
+    size_t i = 0;
+    while (i < s.size()) {
+        int len = ustr::CharLen(static_cast<uint8_t>(s[i]));
+        if (i + len > s.size()) len = 1;
+        chars.push_back(s.substr(i, len));
+        i += len;
+    }
+    return chars;
+}
+
 std::vector<std::string> SemanticCutter::Cut(const std::string& sentence,
-                                              bool en) {
-    // First split by Han/non-Han so non-Han runs keep their spaces intact.
+                                              bool cn, bool en) {
+    // Split by Han/non-Han so each run gets appropriate treatment.
     auto runs = ustr::SplitByHan(sentence);
     std::vector<std::string> rs;
 
     for (auto& [run, is_han] : runs) {
-        if (is_han) {
-            // Han: split by punctuation, then Unigram each segment.
-            auto segments = ustr::SplitByPunct(run);
-            for (auto& [seg, is_punct] : segments) {
+        if (is_han && cn) {
+            // Han with cn: NaiveCutter handles SplitByPunct internally.
+            auto words = cutter_.Cut(run);
+            rs.insert(rs.end(), words.begin(), words.end());
+        } else if (!is_han && en && piece_.Ready()) {
+            // Non-Han with en: pre-split into words/numbers/punct chunks.
+            auto chunks = ustr::SplitNonHan(run);
+            for (auto& [chunk, is_punct] : chunks) {
                 if (is_punct) {
-                    rs.push_back(seg);
+                    rs.push_back(chunk);
                 } else {
-                    auto words = cutter_.CutSegment(seg);
-                    rs.insert(rs.end(), words.begin(), words.end());
+                    auto tokens = piece_.Tokenize(chunk);
+                    rs.insert(rs.end(), tokens.begin(), tokens.end());
                 }
             }
-        } else if (en && piece_.Ready()) {
-            // Non-Han with en: PieceTokenizer handles spaces via ▁.
-            auto tokens = piece_.Tokenize(run);
-            rs.insert(rs.end(), tokens.begin(), tokens.end());
         } else {
-            // Non-Han without en: split by punctuation, keep as-is.
-            auto segments = ustr::SplitByPunct(run);
-            for (auto& [seg, is_punct] : segments) {
-                rs.push_back(seg);
-            }
+            // Fallback: split into individual UTF-8 characters.
+            auto chars = SplitChars(run);
+            rs.insert(rs.end(), chars.begin(), chars.end());
         }
     }
 

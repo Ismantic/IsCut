@@ -320,6 +320,7 @@ int main(int argc, char* argv[]) {
     std::string mode;
     std::string dict_file;
     std::string piece_file;
+    bool cn = false;
     bool en = false;
     std::vector<std::string> args;
 
@@ -329,6 +330,8 @@ int main(int argc, char* argv[]) {
             dict_file = argv[++i];
         } else if (a == "--piece-model" && i + 1 < argc) {
             piece_file = argv[++i];
+        } else if (a == "--cn") {
+            cn = true;
         } else if (a == "--en") {
             en = true;
         } else if (a == "--segment" || a == "--cut" || a == "--count" ||
@@ -341,20 +344,13 @@ int main(int argc, char* argv[]) {
     }
 
     if (mode == "--semantic") {
-        if (dict_file.empty()) {
-            std::cerr << "usage: iscut --dict dict.file --semantic [--piece-model piece.txt] [--en]" << std::endl;
-            return 1;
-        }
-        auto cutter = BuildCutter(dict_file);
         cut::SemanticCutter sc;
-        sc.Build(std::vector<std::string>{}, std::vector<int>{});
-
-        // Reuse the NaiveCutter we already built — rebuild SemanticCutter with same dict
-        {
+        if (!dict_file.empty()) {
             std::vector<std::string> words;
             std::vector<int> freqs;
             LoadDict(dict_file, words, freqs);
             sc.Build(words, freqs);
+            std::cerr << "dict loaded: " << words.size() << " words" << std::endl;
         }
 
         if (!piece_file.empty()) {
@@ -363,7 +359,12 @@ int main(int argc, char* argv[]) {
                 return 1;
             }
             std::cerr << "piece model loaded" << std::endl;
-        } else if (en) {
+        }
+
+        if (cn && dict_file.empty()) {
+            std::cerr << "warning: --cn requires --dict" << std::endl;
+        }
+        if (en && piece_file.empty()) {
             std::cerr << "warning: --en requires --piece-model" << std::endl;
         }
 
@@ -371,7 +372,7 @@ int main(int argc, char* argv[]) {
         std::string line;
         while (std::getline(std::cin, line)) {
             if (line.empty() || line == "q" || line == "quit") break;
-            auto rs = sc.Cut(line, en);
+            auto rs = sc.Cut(line, cn, en);
             std::cout << join(rs, "/") << std::endl;
             std::cout << "> ";
         }

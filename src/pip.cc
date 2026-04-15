@@ -56,8 +56,8 @@ public:
         }
     }
 
-    std::vector<std::string> cut(const std::string& sentence, bool en) {
-        return cutter_.Cut(sentence, en);
+    std::vector<std::string> cut(const std::string& sentence, bool cn, bool en) {
+        return cutter_.Cut(sentence, cn, en);
     }
 
 private:
@@ -75,5 +75,5 @@ PYBIND11_MODULE(_iscut, m) {
         .def(py::init<const std::string&, const std::string&>(),
              py::arg("dict_path"), py::arg("piece_path") = "")
         .def("cut", &PySemanticCutter::cut,
-             py::arg("sentence"), py::arg("en") = false);
+             py::arg("sentence"), py::arg("cn") = false, py::arg("en") = false);
 }

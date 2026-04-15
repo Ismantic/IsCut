@@ -78,10 +78,10 @@ public:
 
     bool LoadPiece(const std::string& path);
 
+    // cn: use NaiveCutter (Unigram) for Han runs
     // en: use PieceTokenizer for non-Han runs (requires LoadPiece)
-    // Always splits Han/non-Han; only Han runs go through Unigram.
     std::vector<std::string> Cut(const std::string& sentence,
-                                 bool en = false);
+                                 bool cn = false, bool en = false);
 
 private:
     NaiveCutter cutter_;
