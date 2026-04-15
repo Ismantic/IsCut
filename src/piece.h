@@ -64,6 +64,7 @@ private:
     std::string Denormalize(std::string_view text) const;
     std::vector<int> BuildInitialTokenIds(const std::string& text) const;
     void GreedyMerge(std::vector<int>& ids) const;
+    std::vector<std::string> TokenizeChunk(std::string_view chunk) const;
 
     std::vector<PieceEntry> pieces_;
     std::unordered_map<std::string_view, int> piece_to_id_;

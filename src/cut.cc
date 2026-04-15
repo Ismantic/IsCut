@@ -182,22 +182,12 @@ std::vector<std::string> SemanticCutter::Cut(const std::string& sentence,
 
     for (auto& [run, is_han] : runs) {
         if (is_han && cn) {
-            // Han with cn: NaiveCutter handles SplitByPunct internally.
             auto words = cutter_.Cut(run);
             rs.insert(rs.end(), words.begin(), words.end());
         } else if (!is_han && en && piece_.Ready()) {
-            // Non-Han with en: pre-split into words/numbers/punct chunks.
-            auto chunks = ustr::SplitNonHan(run);
-            for (auto& [chunk, is_punct] : chunks) {
-                if (is_punct) {
-                    rs.push_back(chunk);
-                } else {
-                    auto tokens = piece_.Tokenize(chunk);
-                    rs.insert(rs.end(), tokens.begin(), tokens.end());
-                }
-            }
+            auto tokens = piece_.Tokenize(run);
+            rs.insert(rs.end(), tokens.begin(), tokens.end());
         } else {
-            // Fallback: split into individual UTF-8 characters.
             auto chars = SplitChars(run);
             rs.insert(rs.end(), chars.begin(), chars.end());
         }

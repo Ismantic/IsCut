@@ -1,11 +1,172 @@
 #include "piece.h"
+#include "ustr.h"
 
+#include <algorithm>
 #include <climits>
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <string_view>
+#include <vector>
 
 namespace piece {
+
+// ---------------------------------------------------------------------------
+// IsWordChar / SplitText — ported from Tokenizer/src/ustr.cc
+// ---------------------------------------------------------------------------
+
+static bool IsWordChar(uint32_t cp) {
+    if (cp >= '0' && cp <= '9') return true;
+    if (cp >= 'A' && cp <= 'Z') return true;
+    if (cp >= 'a' && cp <= 'z') return true;
+    if (cp >= 0x00C0 && cp <= 0x00FF && cp != 0x00D7 && cp != 0x00F7) return true;
+    if (cp >= 0x0100 && cp <= 0x02FF) return true;
+    if (cp >= 0x0300 && cp <= 0x036F) return true;
+    if (cp >= 0x0370 && cp <= 0x07FF) return true;
+    if (cp >= 0x0800 && cp <= 0x085F) return true;
+    if (cp >= 0x0900 && cp <= 0x1CFF) return true;
+    if (cp >= 0x1D00 && cp <= 0x1FFF) return true;
+    if (cp >= 0x2E80 && cp <= 0x2FFF) return true;
+    if (cp >= 0x3040 && cp <= 0x31FF) return true;
+    if (cp >= 0x3200 && cp <= 0x33FF) return true;
+    if (cp >= 0x3400 && cp <= 0x9FFF) return true;
+    if (cp >= 0xA000 && cp <= 0xABFF) return true;
+    if (cp >= 0xAC00 && cp <= 0xD7FF) return true;
+    if (cp >= 0xF900 && cp <= 0xFAFF) return true;
+    if (cp >= 0xFB00 && cp <= 0xFDFF) return true;
+    if (cp >= 0xFE70 && cp <= 0xFEFF) return true;
+    if (cp >= 0xFF10 && cp <= 0xFF19) return true;
+    if ((cp >= 0xFF21 && cp <= 0xFF3A) ||
+        (cp >= 0xFF41 && cp <= 0xFF5A)) return true;
+    if (cp >= 0xFF66 && cp <= 0xFF9F) return true;
+    if (cp >= 0xFFA0 && cp <= 0xFFDC) return true;
+    if (cp >= 0x10000 && cp <= 0x103FF) return true;
+    if (cp >= 0x10400 && cp <= 0x10FFF) return true;
+    if (cp >= 0x20000 && cp <= 0x323AF) return true;
+    return false;
+}
+
+static bool IsHanCP(uint32_t cp) {
+    return (cp >= 0x3400 && cp <= 0x4DBF) ||
+           (cp >= 0x4E00 && cp <= 0x9FFF) ||
+           (cp >= 0xF900 && cp <= 0xFAFF) ||
+           (cp >= 0x20000 && cp <= 0x323AF);
+}
+
+static uint32_t DecodeCP(const char* p, const char* end) {
+    int len = ustr::CharLen(static_cast<uint8_t>(*p));
+    if (p + len > end) len = 1;
+    return ustr::DecodeUTF8(std::string_view(p, len));
+}
+
+static std::vector<std::string_view> SplitText(std::string_view text,
+                                                std::string_view space) {
+    std::vector<std::string_view> result;
+    const char* begin = text.data();
+    const char* end = text.data() + text.size();
+    if (begin >= end) return result;
+
+    auto char_len = [&](const char* p) -> int {
+        return std::min<int>(ustr::CharLen(static_cast<uint8_t>(*p)), end - p);
+    };
+
+    enum Kind { kSpace, kWord, kPunct };
+    auto classify = [&](const char* p, int len) -> Kind {
+        std::string_view c(p, len);
+        if (c == space) return kSpace;
+        uint32_t cp = DecodeCP(p, end);
+        if (IsWordChar(cp)) return kWord;
+        return kPunct;
+    };
+
+    const char* pending_space = nullptr;
+    int pending_space_len = 0;
+
+    while (begin < end) {
+        const int clen = char_len(begin);
+        const Kind kind = classify(begin, clen);
+
+        if (kind == kSpace) {
+            if (pending_space != nullptr) {
+                result.emplace_back(pending_space, pending_space_len);
+            }
+            pending_space = begin;
+            pending_space_len = clen;
+            begin += clen;
+            continue;
+        }
+
+        if (kind == kWord) {
+            uint32_t first_cp = DecodeCP(begin, end);
+            bool first_han = IsHanCP(first_cp);
+
+            const char* run_start;
+            if (pending_space != nullptr) {
+                if (first_han) {
+                    result.emplace_back(pending_space, pending_space_len);
+                    run_start = begin;
+                } else {
+                    run_start = pending_space;
+                }
+                pending_space = nullptr;
+            } else {
+                run_start = begin;
+            }
+
+            const char* run_end = begin;
+            while (run_end < end) {
+                const int wlen = char_len(run_end);
+                if (classify(run_end, wlen) != kWord) break;
+                uint32_t cp = DecodeCP(run_end, end);
+                if (IsHanCP(cp) != first_han) break;
+                run_end += wlen;
+            }
+            result.emplace_back(run_start, run_end - run_start);
+            begin = run_end;
+            continue;
+        }
+
+        // kPunct
+        if (pending_space == nullptr && begin + clen < end) {
+            const int nlen = char_len(begin + clen);
+            if (classify(begin + clen, nlen) == kWord) {
+                uint32_t wcp = DecodeCP(begin + clen, end);
+                if (!IsHanCP(wcp)) {
+                    const char* run_start = begin;
+                    const char* run_end = begin + clen;
+                    while (run_end < end) {
+                        const int wlen = char_len(run_end);
+                        if (classify(run_end, wlen) != kWord) break;
+                        uint32_t cp = DecodeCP(run_end, end);
+                        if (IsHanCP(cp)) break;
+                        run_end += wlen;
+                    }
+                    result.emplace_back(run_start, run_end - run_start);
+                    begin = run_end;
+                    continue;
+                }
+            }
+        }
+
+        const char* run_start =
+            pending_space != nullptr ? pending_space : begin;
+        pending_space = nullptr;
+        const char* run_end = begin;
+        while (run_end < end) {
+            const int plen = char_len(run_end);
+            if (classify(run_end, plen) != kPunct) break;
+            run_end += plen;
+        }
+        result.emplace_back(run_start, run_end - run_start);
+        begin = run_end;
+    }
+
+    if (pending_space != nullptr) {
+        result.emplace_back(pending_space, pending_space_len);
+    }
+
+    return result;
+}
 
 // Unescape \xHH byte sequences in piece text.
 static std::string Unescape(const std::string& s) {
@@ -243,19 +404,25 @@ static bool IsValidUTF8(const std::string& s) {
     return true;
 }
 
-std::vector<std::string> PieceTokenizer::Tokenize(
-    std::string_view text) const {
-    auto encoded = Encode(text);
-    // Merge adjacent tokens that form incomplete UTF-8 sequences.
+// BPE-encode a pre-normalized chunk (no Normalize call), returning
+// string tokens with incomplete UTF-8 sequences merged.
+std::vector<std::string> PieceTokenizer::TokenizeChunk(
+    std::string_view chunk) const {
+    std::vector<int> ids = BuildInitialTokenIds(std::string(chunk));
+    GreedyMerge(ids);
+
     std::vector<std::string> tokens;
-    tokens.reserve(encoded.size());
+    tokens.reserve(ids.size());
     std::string buf;
-    for (auto& [piece, id] : encoded) {
+    for (int id : ids) {
+        const std::string& piece =
+            (id >= 0 && id < static_cast<int>(pieces_.size()))
+                ? pieces_[id].text : pieces_[unk_id_].text;
         if (buf.empty()) {
             if (IsValidUTF8(piece)) {
-                tokens.push_back(std::move(piece));
+                tokens.push_back(piece);
             } else {
-                buf = std::move(piece);
+                buf = piece;
             }
         } else {
             buf += piece;
@@ -265,8 +432,20 @@ std::vector<std::string> PieceTokenizer::Tokenize(
             }
         }
     }
-    if (!buf.empty()) {
-        tokens.push_back(std::move(buf));
+    if (!buf.empty()) tokens.push_back(std::move(buf));
+    return tokens;
+}
+
+std::vector<std::string> PieceTokenizer::Tokenize(
+    std::string_view text) const {
+    // Normalize → SplitText → BPE each chunk.
+    std::string normalized = Normalize(text);
+    auto chunks = SplitText(normalized, space_);
+
+    std::vector<std::string> tokens;
+    for (auto chunk : chunks) {
+        auto chunk_tokens = TokenizeChunk(chunk);
+        tokens.insert(tokens.end(), chunk_tokens.begin(), chunk_tokens.end());
     }
     return tokens;
 }
