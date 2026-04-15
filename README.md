@@ -140,6 +140,7 @@ I/▁love/▁Py/th/on/3/./14
 
 ```python
 import iscut
+
 sc = iscut.MixCutter("dict.txt", "piece.txt")
 sc.cut("Hello世界", cn=True, en=True)  # ['H', 'ello', '世界']
 ```
