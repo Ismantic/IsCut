@@ -13,8 +13,8 @@ Iscut (Is Semantic Cutter / 是语切词) is a Chinese word segmentation tool. I
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 
-# Run tests
-cmake --build build && ./build/iscut-test
+# Run tests (no CMake target yet — compile manually)
+cmake --build build && g++ -std=c++17 -Isrc src/test.cc src/cut.cc src/ustr.cc -o build/iscut-test && ./build/iscut-test
 
 # Install Python package (requires pybind11)
 uv pip install .
@@ -34,7 +34,7 @@ Full pipeline to retrain the dictionary from scratch:
 2. **Fetch corpus** (`cd data && make`) — downloads Chinese Wikipedia/Wikinews from HuggingFace, converts to simplified, splits into sentences
 3. **Train** (`cd scripts && make`) — character frequency counting, dict filtering, EM training with pruning
 
-Training requires: `datasets`, `huggingface_hub[cli]`, `opencc` Python packages. Control vocab size with `make VOCAB_SIZE=120000 SUB_ITERS=2`.
+Training requires: `datasets`, `huggingface_hub[cli]`, `opencc` Python packages. Control vocab size with `make VOCAB_SIZE=240000 SUB_ITERS=2` (default is 240000).
 
 ## Architecture
 
@@ -45,8 +45,13 @@ Training requires: `datasets`, `huggingface_hub[cli]`, `opencc` Python packages.
 - **`segment.h/cc`** — `cut::Segmenter`: forward longest-match segmenter (no frequencies). Used for EM cold start.
 - **`ustr.h/cc`** — UTF-8 utilities: char length, punctuation detection, `SplitByPunct` for pre-segmentation.
 - **`count.h/cc`** — `cut::Counter`: word frequency accumulator.
+- **`piece.h/cc`** — `cut::PieceTokenizer`: BPE tokenizer for non-Chinese text (English). Loads a `piece.txt` vocab, applies Unicode normalization and BPE merge rules.
 - **`main.cc`** — CLI with modes: `--pipe`, `--segment`, `--cut`, `--count`, `--prune`, or REPL.
-- **`pip.cc`** — pybind11 wrapper exposing `Cutter` class to Python.
+- **`pip.cc`** — pybind11 wrapper exposing `Cutter` and `MixCutter` to Python.
+
+### MixCutter (mixed-language segmentation)
+
+`cut::MixCutter` handles text containing both Chinese and non-Chinese. It uses `SplitByHan` to separate Han/non-Han runs, then applies `Cutter` (DAG+DP) for Chinese spans and `PieceTokenizer` (BPE) for non-Chinese spans. Exposed to Python as `iscut.MixCutter(dict_path, piece_path)`.
 
 ### Key design patterns
 
@@ -58,3 +63,4 @@ Training requires: `datasets`, `huggingface_hub[cli]`, `opencc` Python packages.
 
 - `dict.txt` — current default dictionary (~120k words)
 - `dict.12w.txt`, `dict.24w.txt` — alternative sizes (12万/24万 words)
+- `piece.txt` — BPE vocabulary (~43k pieces) used by `PieceTokenizer`/`MixCutter` for non-Chinese text
