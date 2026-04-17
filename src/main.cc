@@ -322,8 +322,6 @@ int main(int argc, char* argv[]) {
     std::string piece_file;
     bool cn = false;
     bool en = false;
-    bool space = false;
-    int split_cut = 0;
     std::vector<std::string> args;
 
     for (int i = 1; i < argc; ++i) {
@@ -336,10 +334,6 @@ int main(int argc, char* argv[]) {
             cn = true;
         } else if (a == "--en") {
             en = true;
-        } else if (a == "--space") {
-            space = true;
-        } else if (a == "--split-cut" && i + 1 < argc) {
-            split_cut = std::stoi(argv[++i]);
         } else if (a == "--segment" || a == "--cut" || a == "--count" ||
                    a == "--pipe" || a == "--prune" || a == "--piece" ||
                    a == "--semantic") {
@@ -378,7 +372,7 @@ int main(int argc, char* argv[]) {
         std::string line;
         while (std::getline(std::cin, line)) {
             if (line.empty() || line == "q" || line == "quit") break;
-            auto rs = sc.Cut(line, cn, en, space, split_cut);
+            auto rs = sc.Cut(line, cn, en);
             std::cout << join(rs, "/") << std::endl;
             std::cout << "> ";
         }

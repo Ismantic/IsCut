@@ -27,14 +27,11 @@ public:
 
     // Encode text into piece strings.
     // space=true: preserve all spaces (reconstruct mode).
-    std::vector<std::string> Tokenize(std::string_view text,
-                                      bool space = false,
-                                      int cut = -1) const;
+    std::vector<std::string> Tokenize(std::string_view text) const;
 
     // Pre-tokenize only (Normalize → SplitText, no BPE).
     std::vector<std::string> PreTokenize(std::string_view text,
-                                         bool space = false,
-                                         int cut = -1) const;
+                                         int cut = 1) const;
 
     // Encode text into token IDs.
     std::vector<int> EncodeIds(std::string_view text) const;

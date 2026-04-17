@@ -529,11 +529,10 @@ std::vector<std::string> PieceTokenizer::TokenizeChunk(
 }
 
 std::vector<std::string> PieceTokenizer::Tokenize(
-    std::string_view text, bool space, int cut) const {
+    std::string_view text) const {
     // Normalize → SplitText → BPE each chunk.
-    if (cut < 0) cut = cut_;
-    std::string normalized = Normalize(text, space);
-    auto chunks = SplitText(normalized, space_, cut);
+    std::string normalized = Normalize(text, reconstruct_);
+    auto chunks = SplitText(normalized, space_, cut_);
 
     std::vector<std::string> tokens;
     for (auto chunk : chunks) {
@@ -544,9 +543,8 @@ std::vector<std::string> PieceTokenizer::Tokenize(
 }
 
 std::vector<std::string> PieceTokenizer::PreTokenize(
-    std::string_view text, bool space, int cut) const {
-    if (cut < 0) cut = cut_;
-    std::string normalized = Normalize(text, space);
+    std::string_view text, int cut) const {
+    std::string normalized = Normalize(text, false);
     auto chunks = SplitText(normalized, space_, cut);
     std::vector<std::string> tokens;
     for (auto chunk : chunks) {
