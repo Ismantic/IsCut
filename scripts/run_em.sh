@@ -136,7 +136,7 @@ for line in open('$OUT/prune.${round}.txt'):
     if c < $MIN_COUNT:
         continue
     n = len(w.encode('utf-8')) // 3 if ord(w[0]) > 127 else len(w)
-    score = l / c / max(n, 1) if c > 0 else 0
+    score = l / (c ** 0.5) / max(n, 1) if c > 0 else 0
     items.append((score, w))
 new_size = max($VOCAB_SIZE - len(singles), int(len(items) * 75 / 100))
 print(f'singles={len(singles)}, eligible={len(items)}, new_size={new_size + len(singles)}', file=sys.stderr)
