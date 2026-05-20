@@ -47,15 +47,7 @@ def main() -> None:
                 seen.add(word)
                 kept += 1
 
-        # Add all CJK single chars seen in corpus (no min_count filter)
-        added = 0
-        for ch, cnt in freq.items():
-            if len(ch) == 1 and '\u4e00' <= ch <= '\u9fff' and ch not in seen:
-                fout.write(ch + "\n")
-                seen.add(ch)
-                added += 1
-
-    print(f"{kept}/{total} words kept, {added} single chars added (min_count={args.min_count})", file=sys.stderr)
+    print(f"{kept}/{total} words kept (min_count={args.min_count})", file=sys.stderr)
 
 
 if __name__ == "__main__":
